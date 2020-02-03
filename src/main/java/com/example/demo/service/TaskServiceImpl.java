@@ -10,8 +10,12 @@ import com.example.demo.model.Agent;
 import com.example.demo.model.AgentTasks;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import javax.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -112,28 +116,44 @@ public class TaskServiceImpl implements TaskService {
   }
 
   private Agent selectAgent(List<Agent> agents, String priority) {
+    Map<Long, Agent> agentMap = getAgentMap(agents);
+    if (agentMap == null) return null;
+    List<Long> agentIds = new ArrayList<>(agentMap.keySet());
     List<AgentTasks> incompleteTasks = agentTasksRepository.findAllByAgentIds(agents);
+
     if (incompleteTasks != null) {
       for (AgentTasks task : incompleteTasks) {
         if ("high".equalsIgnoreCase(task.getPriority()) ||
             priority.equalsIgnoreCase(task.getPriority()))
-             agents.remove(task.getAgent());
+          agentIds.remove(task.getAgent().getAgentId());
       }
     } else {
       if (!agents.isEmpty()) return agents.get(0);
+      else return null;
     }
 
 
-    if (!agents.isEmpty()) {
+    if (!agentIds.isEmpty()) {
       if ("low".equalsIgnoreCase(priority)) {
-        return agents.get(0);
+        return agentMap.get(agentIds.get(0));
       } else if ("high".equalsIgnoreCase(priority)) { //Assign it to agent who is most recently assigned a low priority task
         for (AgentTasks task : incompleteTasks) {
-          if(agents.contains(task.getAgent()))
-            return task.getAgent();
+          if(agentIds.contains(task.getAgent().getAgentId()))
+            return agentMap.get(task.getAgent().getAgentId());
         }
       }
     }
     return null;
+  }
+
+  private Map<Long, Agent> getAgentMap(List<Agent> agents) {
+    Map<Long, Agent> map =null;
+    if (agents!=null) {
+      map = new HashMap<>();
+      for (Agent agent : agents) {
+        map.put(agent.getAgentId(), agent);
+      }
+    }
+    return map;
   }
 }
